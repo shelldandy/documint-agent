@@ -108,29 +108,41 @@ def create_claude_prompt_file(prompt_content):
 def run_claude_code(prompt_file):
     """Execute Claude Code with the prompt file"""
     try:
-        # Try to run claude code with the prompt
+        # Read the prompt content and pass it directly to claude
+        with open(prompt_file, 'r') as f:
+            prompt_content = f.read()
+        
+        print("🤖 Sending request to Claude...")
+        
+        # Try to run claude with the prompt content using --print for non-interactive output
         result = subprocess.run(
-            ['claude', 'code', '--file', prompt_file],
+            ['claude', '--print'],
+            input=prompt_content,
             capture_output=True,
             text=True,
-            timeout=300  # 5 minute timeout
+            timeout=120  # 2 minute timeout - reduced from 5 minutes
         )
+
+        print(f"📊 Claude response received (return code: {result.returncode})")
 
         if result.returncode == 0:
             return result.stdout
         else:
-            print(f"Error running Claude Code: {result.stderr}")
+            print(f"❌ Error running Claude Code: {result.stderr}")
+            print(f"Return code: {result.returncode}")
+            if result.stdout:
+                print(f"Stdout: {result.stdout[:500]}...")  # First 500 chars
             return None
 
     except subprocess.TimeoutExpired:
-        print("Claude Code execution timed out")
+        print("⏰ Claude Code execution timed out (2 minutes)")
         return None
     except FileNotFoundError:
-        print("Claude Code not found. Please install Claude Code CLI.")
+        print("❌ Claude Code not found. Please install Claude Code CLI.")
         print("Visit: https://claude.ai/code for installation instructions")
         return None
     except Exception as e:
-        print(f"Error executing Claude Code: {e}")
+        print(f"❌ Error executing Claude Code: {e}")
         return None
 
 def save_documentation(content, output_path):

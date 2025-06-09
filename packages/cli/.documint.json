@@ -1,0 +1,9 @@
+{
+  "documint": {
+    "default_style": "tutorial",
+    "default_audience": "developers",
+    "default_scope": "standard",
+    "output_directory": "docs",
+    "include_metadata": true
+  }
+}
