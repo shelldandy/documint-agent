@@ -1,0 +1,382 @@
+#!/usr/bin/env python3
+"""
+DocuMint CLI - AI Documentation Agent
+Transform any technical topic into world-class documentation
+"""
+
+import argparse
+import os
+import sys
+from pathlib import Path
+from datetime import datetime
+import json
+import subprocess
+import tempfile
+import shutil
+
+# Core DocuMint prompt template
+DOCUMINT_PROMPT = """You are DocuMint, an AI documentation agent that transforms technical topics into world-class documentation. Your unique capability is comprehensive multi-source research combined with professional technical writing.
+
+## Your Process:
+
+### 1. RESEARCH PHASE
+When given a topic, you will:
+- Search for official documentation, GitHub repositories, and community discussions
+- Analyze multiple sources to understand the complete ecosystem
+- Identify common pain points, best practices, and real-world usage patterns
+- Cross-reference information for accuracy and completeness
+- Note any conflicting information or outdated sources
+
+### 2. SYNTHESIS PHASE
+You will synthesize findings into:
+- Clear problem/solution understanding
+- Comprehensive feature overview
+- Practical usage patterns
+- Common troubleshooting scenarios
+- Best practices and recommendations
+
+### 3. WRITING PHASE
+Generate professional documentation that includes:
+- Executive summary with key takeaways
+- Clear structure with scannable headers
+- Practical examples and code snippets
+- Troubleshooting section with real solutions
+- Links to authoritative sources
+- Professional tone appropriate for the target audience
+
+## Documentation Styles Available:
+- **oss-readme**: Open source project style with badges, quick start, contributing guidelines
+- **tutorial**: Step-by-step learning guide with progressive complexity
+- **enterprise-guide**: Professional internal documentation with security considerations
+- **api-reference**: Technical API documentation with endpoints and examples
+- **troubleshooting**: Problem-solving guide with common issues and solutions
+- **architecture**: System design documentation with diagrams and explanations
+
+## Quality Standards:
+- Factual accuracy validated across multiple sources
+- Complete coverage of the topic with no major gaps
+- Professional writing quality comparable to senior technical writers
+- Actionable content that users can immediately apply
+- Proper attribution and source linking
+
+---
+
+Please generate {style} documentation for: {topic}
+
+Target audience: {audience}
+Scope: {scope}
+{additional_requirements}
+
+Research across official docs, GitHub issues, community forums, and best practices to create publication-ready documentation."""
+
+def create_output_directory(output_dir):
+    """Create output directory if it doesn't exist"""
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    return Path(output_dir)
+
+def generate_filename(topic, style, custom_name=None):
+    """Generate appropriate filename based on topic and style"""
+    if custom_name:
+        return f"{custom_name}.md"
+
+    # Clean topic for filename
+    clean_topic = "".join(c for c in topic if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    clean_topic = clean_topic.replace(' ', '-').lower()
+
+    # Style-specific naming
+    if style == 'oss-readme':
+        return 'README.md'
+    elif style == 'api-reference':
+        return f'api-{clean_topic}.md'
+    elif style == 'troubleshooting':
+        return f'troubleshooting-{clean_topic}.md'
+    elif style == 'architecture':
+        return f'architecture-{clean_topic}.md'
+    elif style == 'tutorial':
+        return f'tutorial-{clean_topic}.md'
+    elif style == 'enterprise-guide':
+        return f'guide-{clean_topic}.md'
+    else:
+        return f'{clean_topic}.md'
+
+def create_claude_prompt_file(prompt_content):
+    """Create a temporary file with the prompt for Claude Code"""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        f.write(prompt_content)
+        return f.name
+
+def run_claude_code(prompt_file):
+    """Execute Claude Code with the prompt file"""
+    try:
+        # Try to run claude code with the prompt
+        result = subprocess.run(
+            ['claude', 'code', '--file', prompt_file],
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+
+        if result.returncode == 0:
+            return result.stdout
+        else:
+            print(f"Error running Claude Code: {result.stderr}")
+            return None
+
+    except subprocess.TimeoutExpired:
+        print("Claude Code execution timed out")
+        return None
+    except FileNotFoundError:
+        print("Claude Code not found. Please install Claude Code CLI.")
+        print("Visit: https://claude.ai/code for installation instructions")
+        return None
+    except Exception as e:
+        print(f"Error executing Claude Code: {e}")
+        return None
+
+def save_documentation(content, output_path):
+    """Save the generated documentation to file"""
+    try:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return True
+    except Exception as e:
+        print(f"Error saving file: {e}")
+        return False
+
+def create_metadata_file(output_dir, metadata):
+    """Create a metadata file for the generated documentation"""
+    metadata_path = Path(output_dir) / '.documint-metadata.json'
+
+    try:
+        # Load existing metadata if it exists
+        existing_metadata = {}
+        if metadata_path.exists():
+            with open(metadata_path, 'r') as f:
+                existing_metadata = json.load(f)
+
+        # Add new entry
+        existing_metadata[metadata['filename']] = metadata
+
+        # Save updated metadata
+        with open(metadata_path, 'w') as f:
+            json.dump(existing_metadata, f, indent=2)
+
+    except Exception as e:
+        print(f"Warning: Could not save metadata: {e}")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='DocuMint - AI Documentation Agent',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  documint --topic "Docker containers" --style tutorial
+  documint --topic "REST API auth" --style enterprise-guide --audience "backend devs"
+  documint --topic "React hooks" --style oss-readme --output ./project-docs
+  documint --topic "K8s networking" --style troubleshooting --scope comprehensive
+        """
+    )
+
+    # Required arguments
+    parser.add_argument(
+        '--topic', '-t',
+        required=True,
+        help='Topic to generate documentation for'
+    )
+
+    # Style selection
+    parser.add_argument(
+        '--style', '-s',
+        choices=['oss-readme', 'tutorial', 'enterprise-guide', 'api-reference', 'troubleshooting', 'architecture'],
+        default='tutorial',
+        help='Documentation style (default: tutorial)'
+    )
+
+    # Optional arguments
+    parser.add_argument(
+        '--audience', '-a',
+        default='developers',
+        help='Target audience (default: developers)'
+    )
+
+    parser.add_argument(
+        '--scope',
+        choices=['basic', 'standard', 'comprehensive', 'expert-level'],
+        default='standard',
+        help='Documentation scope (default: standard)'
+    )
+
+    parser.add_argument(
+        '--output', '-o',
+        default='docs',
+        help='Output directory (default: docs)'
+    )
+
+    parser.add_argument(
+        '--filename', '-f',
+        help='Custom filename (without extension)'
+    )
+
+    parser.add_argument(
+        '--include',
+        nargs='+',
+        choices=['examples', 'troubleshooting', 'architecture', 'security', 'performance', 'testing'],
+        help='Additional sections to include'
+    )
+
+    parser.add_argument(
+        '--focus',
+        help='Specific focus areas or requirements'
+    )
+
+    parser.add_argument(
+        '--length',
+        choices=['brief', 'standard', 'comprehensive'],
+        default='standard',
+        help='Documentation length (default: standard)'
+    )
+
+    parser.add_argument(
+        '--repo',
+        help='GitHub repository to analyze (format: owner/repo)'
+    )
+
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show the prompt that would be sent without executing'
+    )
+
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Verbose output'
+    )
+
+    args = parser.parse_args()
+
+    # Build additional requirements
+    additional_requirements = []
+
+    if args.include:
+        additional_requirements.append(f"Include sections on: {', '.join(args.include)}")
+
+    if args.focus:
+        additional_requirements.append(f"Focus areas: {args.focus}")
+
+    if args.length != 'standard':
+        additional_requirements.append(f"Length: {args.length}")
+
+    if args.repo:
+        additional_requirements.append(f"Analyze GitHub repository: {args.repo}")
+
+    additional_text = '\n'.join(additional_requirements) if additional_requirements else "Generate comprehensive, professional documentation."
+
+    # Build the full prompt
+    prompt = DOCUMINT_PROMPT.format(
+        style=args.style,
+        topic=args.topic,
+        audience=args.audience,
+        scope=args.scope,
+        additional_requirements=additional_text
+    )
+
+    if args.dry_run:
+        print("=== DocuMint Prompt ===")
+        print(prompt)
+        print("\n=== Configuration ===")
+        print(f"Output directory: {args.output}")
+        print(f"Filename: {generate_filename(args.topic, args.style, args.filename)}")
+        return
+
+    if args.verbose:
+        print(f"🔍 Generating {args.style} documentation for: {args.topic}")
+        print(f"📁 Output directory: {args.output}")
+
+    # Create output directory
+    output_dir = create_output_directory(args.output)
+
+    # Generate filename
+    filename = generate_filename(args.topic, args.style, args.filename)
+    output_path = output_dir / filename
+
+    if args.verbose:
+        print(f"📝 Filename: {filename}")
+        print(f"🤖 Sending prompt to Claude Code...")
+
+    # Create temporary prompt file
+    prompt_file = create_claude_prompt_file(prompt)
+
+    try:
+        # Execute Claude Code
+        documentation = run_claude_code(prompt_file)
+
+        if documentation:
+            # Save the documentation
+            if save_documentation(documentation, output_path):
+                print(f"✅ Documentation generated successfully!")
+                print(f"📄 Saved to: {output_path}")
+
+                # Create metadata
+                metadata = {
+                    'filename': filename,
+                    'topic': args.topic,
+                    'style': args.style,
+                    'audience': args.audience,
+                    'scope': args.scope,
+                    'generated_at': datetime.now().isoformat(),
+                    'args': vars(args)
+                }
+
+                create_metadata_file(output_dir, metadata)
+
+                if args.verbose:
+                    print(f"📊 Metadata saved to: {output_dir / '.documint-metadata.json'}")
+
+            else:
+                print("❌ Failed to save documentation")
+                sys.exit(1)
+        else:
+            print("❌ Failed to generate documentation")
+            sys.exit(1)
+
+    finally:
+        # Clean up temporary file
+        if os.path.exists(prompt_file):
+            os.unlink(prompt_file)
+
+def init_command():
+    """Initialize DocuMint in a project"""
+    config = {
+        "documint": {
+            "default_style": "tutorial",
+            "default_audience": "developers",
+            "default_scope": "standard",
+            "output_directory": "docs",
+            "include_metadata": True
+        }
+    }
+
+    config_path = Path('.documint.json')
+    if config_path.exists():
+        print("⚠️  .documint.json already exists")
+        return
+
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+
+    # Create docs directory
+    Path('docs').mkdir(exist_ok=True)
+
+    print("✅ DocuMint initialized!")
+    print(f"📄 Config saved to: {config_path}")
+    print("📁 Created docs/ directory")
+    print("\nNext steps:")
+    print("  documint --topic 'your topic' --style tutorial")
+
+if __name__ == '__main__':
+    # Check if this is an init command
+    if len(sys.argv) > 1 and sys.argv[1] == 'init':
+        init_command()
+    else:
+        main()
