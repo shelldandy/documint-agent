@@ -171,7 +171,7 @@ documint --topic "TOPIC" --style STYLE [OPTIONS]
 | `--focus`         | Specific focus areas          | `--focus "error handling and debugging"` |
 | `--length`        | Documentation length          | `--length comprehensive`                 |
 | `--repo`          | GitHub repository to analyze  | `--repo microsoft/vscode`                |
-| `--dry-run`       | Show prompt without executing | `--dry-run`                              |
+| `--dry-run`       | Show prompt and save to file without executing | `--dry-run`                              |
 | `--verbose`, `-v` | Verbose output                | `--verbose`                              |
 
 ## 💡 Examples
@@ -313,6 +313,10 @@ project/
 │   ├── troubleshooting-redis-issues.md       # --style troubleshooting
 │   ├── architecture-event-driven-system.md   # --style architecture
 │   └── .documint-metadata.json               # Generation history
+├── prompts/
+│   ├── 20250609-143022-tutorial-graphql-apis.md     # --dry-run outputs
+│   ├── 20250609-144530-oss-readme-python-cli.md    # Saved prompts
+│   └── 20250609-145102-enterprise-guide-api.md     # For reuse with Claude
 ├── .documint.json                             # Configuration
 └── your-project-files...
 ```
@@ -339,13 +343,21 @@ The `.documint-metadata.json` file tracks generation history:
 
 ### Dry Run Mode
 
-Preview the prompt without generating documentation:
+Preview the prompt and save it as a markdown file without generating documentation:
 
 ```bash
 documint --topic "GraphQL APIs" --style tutorial --dry-run
 ```
 
-**Output**: Shows the exact prompt that would be sent to Claude Code
+**Output**: 
+- Shows the exact prompt that would be sent to Claude Code
+- Saves the prompt as a timestamped markdown file in `prompts/` folder  
+- Example: `prompts/20250609-143022-tutorial-graphql-apis.md`
+
+This allows you to:
+- Review and modify prompts before using them with Claude directly
+- Build a library of reusable prompts for future documentation projects
+- Share prompts with team members for consistency
 
 ### Verbose Output
 

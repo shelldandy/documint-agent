@@ -74,6 +74,39 @@ def create_output_directory(output_dir):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     return Path(output_dir)
 
+def save_prompt_file(prompt, topic, style, output_dir='prompts'):
+    """Save the prompt as a markdown file in prompts directory"""
+    prompts_dir = Path(output_dir)
+    prompts_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate filename based on topic and style
+    clean_topic = "".join(c for c in topic if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    clean_topic = clean_topic.replace(' ', '-').lower()
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"{timestamp}-{style}-{clean_topic}.md"
+    
+    prompt_path = prompts_dir / filename
+    
+    # Format the prompt as markdown
+    markdown_content = f"""# DocuMint Prompt
+
+**Generated**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+**Topic**: {topic}
+**Style**: {style}
+
+---
+
+{prompt}
+"""
+    
+    try:
+        with open(prompt_path, 'w', encoding='utf-8') as f:
+            f.write(markdown_content)
+        return prompt_path
+    except Exception as e:
+        print(f"Warning: Could not save prompt file: {e}")
+        return None
+
 def generate_filename(topic, style, custom_name=None):
     """Generate appropriate filename based on topic and style"""
     if custom_name:
@@ -108,19 +141,18 @@ def create_claude_prompt_file(prompt_content):
 def run_claude_code(prompt_file):
     """Execute Claude Code with the prompt file"""
     try:
-        # Read the prompt content and pass it directly to claude
+        # Read the prompt content 
         with open(prompt_file, 'r') as f:
             prompt_content = f.read()
         
         print("🤖 Sending request to Claude...")
         
-        # Try to run claude with the prompt content using --print for non-interactive output
+        # Try to run claude with the prompt as a command line argument
         result = subprocess.run(
-            ['claude', '--print'],
-            input=prompt_content,
+            ['claude', '--print', prompt_content],
             capture_output=True,
             text=True,
-            timeout=120  # 2 minute timeout - reduced from 5 minutes
+            timeout=120  # 2 minute timeout
         )
 
         print(f"📊 Claude response received (return code: {result.returncode})")
@@ -256,7 +288,7 @@ Examples:
     parser.add_argument(
         '--dry-run',
         action='store_true',
-        help='Show the prompt that would be sent without executing'
+        help='Show the prompt and save it as a markdown file in prompts/ folder without executing'
     )
 
     parser.add_argument(
@@ -299,6 +331,13 @@ Examples:
         print("\n=== Configuration ===")
         print(f"Output directory: {args.output}")
         print(f"Filename: {generate_filename(args.topic, args.style, args.filename)}")
+        
+        # Save prompt to file
+        prompt_path = save_prompt_file(prompt, args.topic, args.style)
+        if prompt_path:
+            print(f"📄 Prompt saved to: {prompt_path}")
+            print("💡 Use this file with Claude directly for custom modifications")
+        
         return
 
     if args.verbose:
