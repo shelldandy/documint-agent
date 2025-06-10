@@ -165,14 +165,14 @@ documint --topic "TOPIC" --style STYLE [OPTIONS]
 
 ### Advanced Options
 
-| Option            | Description                   | Example                                  |
-| ----------------- | ----------------------------- | ---------------------------------------- |
-| `--include`       | Additional sections           | `--include security performance testing` |
-| `--focus`         | Specific focus areas          | `--focus "error handling and debugging"` |
-| `--length`        | Documentation length          | `--length comprehensive`                 |
-| `--repo`          | GitHub repository to analyze  | `--repo microsoft/vscode`                |
+| Option            | Description                                    | Example                                  |
+| ----------------- | ---------------------------------------------- | ---------------------------------------- |
+| `--include`       | Additional sections                            | `--include security performance testing` |
+| `--focus`         | Specific focus areas                           | `--focus "error handling and debugging"` |
+| `--length`        | Documentation length                           | `--length comprehensive`                 |
+| `--repo`          | GitHub repository to analyze                   | `--repo microsoft/vscode`                |
 | `--dry-run`       | Show prompt and save to file without executing | `--dry-run`                              |
-| `--verbose`, `-v` | Verbose output                | `--verbose`                              |
+| `--verbose`, `-v` | Verbose output                                 | `--verbose`                              |
 
 ## 💡 Examples
 
@@ -349,12 +349,14 @@ Preview the prompt and save it as a markdown file without generating documentati
 documint --topic "GraphQL APIs" --style tutorial --dry-run
 ```
 
-**Output**: 
+**Output**:
+
 - Shows the exact prompt that would be sent to Claude Code
-- Saves the prompt as a timestamped markdown file in `prompts/` folder  
+- Saves the prompt as a timestamped markdown file in `prompts/` folder
 - Example: `prompts/20250609-143022-tutorial-graphql-apis.md`
 
 This allows you to:
+
 - Review and modify prompts before using them with Claude directly
 - Build a library of reusable prompts for future documentation projects
 - Share prompts with team members for consistency
@@ -510,6 +512,7 @@ elif style == 'your-new-style':
 - [ ] **Batch processing** for multiple topics
 - [ ] **Watch mode** for automatic regeneration
 - [ ] **Integration hooks** for git workflows
+- [ ] **Repository checkout** to do a deeper code analysis
 
 ### 🚀 Future (v2.0+)
 
